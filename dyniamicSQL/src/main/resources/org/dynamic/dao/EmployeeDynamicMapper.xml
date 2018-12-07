@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dynamic.dao.EmployeeDynamicMapper">
+    <!--Employee getEmployeeById(String id);-->
+    <select id="getEmployeeById" resultType="org.dynamic.pojo.Employee">
+    select id,last_name as lastName,gender,email from tbl_employee where id = #{id}
+  </select>
+
+    <!--
+        if
+        choose(when,otherwise)
+        trim(where,set)
+        foreach
+    -->
+
+
+    <!-- 动态条件查询：查询员工，要求，携带了哪个字段查询条件就带上这个字段的值 -->
+    <!--List<Employee> getEmpsByConditionIf(Employee employee);-->
+    <select id="getEmpsByConditionIf" resultType="org.dynamic.pojo.Employee">
+      select * from tbl_employee
+        <!-- test：判断表达式（OGNL）
+               OGNL参照笔记或者官方文档。
+                      c:if  test
+               从参数中取值进行判断
+               遇见特殊符号应该去写转义字符：
+               &&：
+            where标签会自动根据条件判断sql中是否需要where关键字
+        -->
+        <where>
+            <if test="id != null">
+               id = #{id}
+            </if>
+            <if test="lastName != null and lastName.trim() != ''">
+                and last_name like #{lastName}
+            </if>
+            <if test="email != null and email.trim() != ''">
+                and email = #{email}
+            </if>
+            <if test="gender == 1 or gender == 2">
+                and gender = #{gender}
+            </if>
+        </where>
+    </select>
+
+    <!--List<Employee> getEmpsByConditionIfTrim(Employee employee);-->
+    <!--trim标签的使用-->
+    <select id="getEmpsByConditionIfTrim" resultType="org.dynamic.pojo.Employee">
+        select * from tbl_employee
+        <!-- and或者or关键字在条件后，如果条件不存在可能会多出一个关键字
+            这会导致报错：sql语法异常
+            trim标签的属性
+            prefix：前缀，trim标签体中式整个字符串拼接后的结果。
+            prefixOverrides：前缀覆盖，去掉整个字符串前面多余的字符
+            suffix：后缀，suffix给拼串后的整个字符串后面加一个前缀
+            suffixOverrides：后缀覆盖，去掉整个字符串后面多余的字符
+        -->
+        <trim prefix="where" suffixOverrides="and">
+            <if test="id != null">
+                id = #{id} and
+            </if>
+            <if test="lastName != null and lastName.trim() != ''">
+                 last_name like #{lastName} and
+            </if>
+            <if test="email != null and email.trim() != ''">
+                 email = #{email} and
+            </if>
+            <if test="gender == 1 or gender == 2">
+                 gender = #{gender}
+            </if>
+        </trim>
+    </select>
+
+
+    <!--void updateEmployee(Employee employee);-->
+    <!--有值的才更新，没值的不更新-->
+    <!--方案一：-->
+    <update id="updateEmployee">
+        update tbl_employee
+        /*set 关键字或者set标签*/
+        <set>
+            <if test="lastName !=null">
+                last_name = #{lastName},
+            </if>
+            <if test="gender != null">
+                gender = #{gender},
+            </if>
+            <if test="email != null">
+                email = #{email}
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+
+
+    <!--方案二 trim标签实现update-->
+    <!--int updateEmployeeTrim(Employee employee);-->
+    <update id="updateEmployeeTrim">
+        update tbl_employee
+        /*set 关键字或者set标签*/
+       <trim prefix="set" suffixOverrides=",">
+           <if test="lastName !=null">
+               last_name = #{lastName},
+           </if>
+           <if test="gender != null">
+               gender = #{gender},
+           </if>
+           <if test="email != null">
+               email = #{email}
+           </if>
+       </trim>
+      where id = #{id}
+    </update>
+
+    <!--List<Employee> getEmpsByConditionForeach(List<Integer> empIds);-->
+    <!--查询in()的结果集-->
+    <select id="getEmpsByConditionForeach" resultType="org.dynamic.pojo.Employee">
+        /*select * from tbl_employee where id in ('1','2','3')*/
+
+        select * from tbl_employee /*where id in (*/
+            <!--
+                foreach标签
+                collection：指定要遍历的集合
+                    list类型的参数会特殊处理封装在map中，map的key就叫list 可以用@Param("ids")注解在接口的参数上指定key的别名
+                item：将当前遍历出的原生赋值给指定的遍历
+                separator：每个元素之间的分隔符
+                open:将遍历出的结果字符串平接一个开始的字符串
+                close：将遍历出的结果字符串平接一个结束的字符串
+                index：索引
+                    遍历list的时候index是索引，item就是当前值
+                    遍历map的时候index表示的是map的key，item就是map的值
+                #{变量名}就能去除遍历的值，也就是当前遍历的元素
+             -->
+            <foreach collection="empId" item="item_id" separator=","
+            open="where id in (" close=")">
+                #{item_id}
+            </foreach>
+        /*)*/
+    </select>
+
+    <!--int addBatchEmps(List<Employee> employees);-->
+    <!--批量保存-->
+    <!--方案一：MySQL下批量保存：可以foreach遍历   mysql支持values(),(),()语法-->
+    <insert id="addBatchEmps">
+        insert into tbl_employee(last_name,gender,email,dept_id)
+        values
+        <foreach collection="list" item="item_emp" separator=",">
+            (#{item_emp.lastName},#{item_emp.gender},#{item_emp.email},#{item_emp.dept.id})
+        </foreach>
+    </insert>
+
+    <!--方案二-->
+    <!--
+        这种写法需要在数据库连接的url上加上allowMultiQueries=true属性
+        这种分号分隔多个sql可以用于其他的批量操作（删除，修改）
+    -->
+    <!--<insert id="addBatchEmps">
+        <foreach collection="list" item="item_emp" separator=";">
+            insert into tbl_employee(last_name,gender,email,dept_id)
+            values (#{item_emp.lastName},#{item_emp.gender},#{item_emp.email},#{item_emp.dept.id})
+        </foreach>
+    </insert>-->
+
+
+    <!--Oracle环境下-->
+    <!-- Oracle数据库批量保存：
+	 	Oracle不支持values(),(),()
+	 	Oracle支持的批量方式
+	 	1、多个insert放在begin - end;里面
+	 		begin
+			    insert into employees(employee_id,last_name,email)
+			    values(employees_seq.nextval,'test_001','test_001@atguigu.com');
+			    insert into employees(employee_id,last_name,email)
+			    values(employees_seq.nextval,'test_002','test_002@atguigu.com');
+			end;
+	-->
+    <!--<insert id="addEmps" databaseId="oracle">
+        &lt;!&ndash; oracle第一种批量方式 &ndash;&gt;
+         <foreach collection="emps" item="emp" open="begin" close="end;">
+            insert into employees(employee_id,last_name,email)
+               values(employees_seq.nextval,#{emp.lastName},#{emp.email});
+        </foreach>
+    </insert>-->
+
+    <!--
+		2、利用中间表：
+			insert into employees(employee_id,last_name,email)
+		       select employees_seq.nextval,lastName,email from(
+		              select 'test_a_01' lastName,'test_a_e01' email from dual
+		              union
+		              select 'test_a_02' lastName,'test_a_e02' email from dual
+		              union
+		              select 'test_a_03' lastName,'test_a_e03' email from dual
+		       )
+	 -->
+    <insert id="addEmps" databaseId="oracle">
+        <!-- oracle第二种批量方式  -->
+        insert into employees(
+        <foreach collection="emps" item="emp" separator="union"
+                 open="select employees_seq.nextval,lastName,email from("
+                 close=")">
+            select #{emp.lastName} lastName,#{emp.email} email from dual
+        </foreach>
+    </insert>
+
+    <!--
+	  	抽取可重用的sql片段。方便后面引用
+	  	1、sql抽取：经常将要查询的列名，或者插入用的列名抽取出来方便引用
+	  	2、include来引用已经抽取的sql：
+	  	3、include还可以自定义一些property，sql标签内部就能使用自定义的属性
+	  			include-property：取值的正确方式${prop},
+	  			#{不能使用这种方式}
+	  -->
+    <sql id="insertColumn">
+        <if test="_databaseId=='oracle'">
+            employee_id,last_name,email
+        </if>
+        <if test="_databaseId=='mysql'">
+            last_name,email,gender,d_id
+        </if>
+    </sql>
+
+
+    <!-- 两个内置参数：
+	 	不只是方法传递过来的参数可以被用来判断，取值。。。
+	 	mybatis默认还有两个内置参数：
+	 	_parameter:代表整个参数
+	 		单个参数：_parameter就是这个参数
+	 		多个参数：参数会被封装为一个map；_parameter就是代表这个map
+
+	 	_databaseId:如果配置了databaseIdProvider标签。
+	 		_databaseId就是代表当前数据库的别名oracle
+	  -->
+    <select id="" resultType="org.dynamic.pojo.Employee">
+        <if test="_databasesId == 'mysql'">
+            select * from tbl_employee
+            <if test="_parameter != null">
+                where last_name = #{lastName}
+            </if>
+
+        </if>
+        <if test="_databasesId == 'oracle'">
+            select * from employee
+            <if test="parameter != null">
+                where last_name = #{_parameter.lastName}
+            </if>
+        </if>
+    </select>
+
+
+    <!--bind标签-->
+    <!--Employee getEmployeeByLastNameBind(String lastName);-->
+    <select id="getEmployeeByLastNameBind" resultType="org.dynamic.pojo.Employee">
+        <bind name="_lastName" value="'_'+_parameter+'%'"/>
+        select * from tbl_employee where last_name like #{_lastName}
+    </select>
+
+
+    <!--List<Employee> getEmployeeByLastNameSql(String lastName);-->
+    <select id="getEmployeeByLastNameSql" resultType="org.dynamic.pojo.Employee">
+        <include refid="sel"/>
+    </select>
+
+    <!--sql标签：抽取重用的sql片段-->
+    <sql id="sel">
+        <if test="_parameter == null">
+            select * from tbl_employee
+        </if>
+        <if test="_parameter != null">
+            <bind name="_lastName" value="'%'+_parameter+'%'"/>
+            select * from tbl_employee where last_name like #{_lastName}
+        </if>
+    </sql>
+</mapper>

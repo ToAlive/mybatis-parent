@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+接口与映射文件做绑定
+1.namespace指向接口的全路径
+2.接口中的方法名称指定到id属性上，实现方法上的绑定
+-->
+<mapper namespace="org.learn.mybatis.dao.EmployeeInterfaceMapper">
+    <select id="getEmployeeById" resultType="org.learn.mybatis.pojo.Employee">
+    select id,last_name as lastName,gender,email from tbl_employee where id = #{id}
+  </select>
+
+
+    <!--void addEmployee(Employee employee)-->
+    <insert id="addEmployee" parameterType="org.learn.mybatis.pojo.Employee">
+        insert into tbl_employee(id,last_name,gender,email) values(#{id},#{lastName},#{gender},#{email})
+    </insert>
+
+    <!--void updateEmployee(Employee employee);-->
+    <update id="updateEmployee">
+        update tbl_employee set last_name = #{lastName},gender=#{gender},email=#{email}
+        where id=#{id}
+    </update>
+
+    <!--void delEmployee(Integer id);-->
+    <delete id="delEmployee">
+        delete from tbl_employee where id=#{id}
+    </delete>
+</mapper>

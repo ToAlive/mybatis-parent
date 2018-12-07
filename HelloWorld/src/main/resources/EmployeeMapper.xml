@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+namespace:命名空间
+id:标签的唯一标识
+resultType：结果集的类型
+#{id}:从传递过来的参数中取出id值
+-->
+<mapper namespace="org.learn.mybatis.pojo.Employee">
+    <select id="selectEmp" resultType="org.learn.mybatis.pojo.Employee">
+    select id,last_name as lastName,gender,email from tbl_employee where id = #{id}
+  </select>
+</mapper>
